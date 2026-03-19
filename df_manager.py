@@ -23,13 +23,17 @@ def is_person(name):
         
     return "Merchant"
 
-def group_words_into_rows(words: list[dict], y_tolerance: int = 3) -> dict:
+
+def group_words_into_rows(words: list[dict], y_tolerance: int = 5) -> dict:
+    
     buckets: dict[int, list] = defaultdict(list)
     for w in words:
         key = round(w["top"] / y_tolerance) * y_tolerance
         buckets[key].append(w)
     return {k: sorted(buckets[k], key=lambda w: w["x0"]) for k in sorted(buckets)}
  
+ 
+
  
 def parse_amount(raw: str) -> str:
     """'₹1,240.36'  →  '1240.36'"""
@@ -272,15 +276,16 @@ def parse_phonepe(pdf_path: str) -> list[dict]:
  
                 transactions.append({
                     "date":   _pp_parse_date(date_text),
+                    
                     "payee":  payee,
                     "type":   type_text.lower(),
                     "amount": parse_amount(amount_text),
-                    "category": category
+                    "category":category
+                    
                 })
                 i += 1
+    df = pd.DataFrame(transactions)
  
-    
-    df = pd.DataFrame( transactions)
     return df
  
  
