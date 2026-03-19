@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+
+<div class="dashboard-container">
+     <div class="stats-container">
+
+        <div class="stat-card">
+            <p class="label">Total Debited Amount:</p>
+            <h2 class="amount">
+                {{ "₹ {:,.2f}".format(debit_sum) }}
+            </h2>
+        </div>
+        <div class="stat-card">
+            <p class="label">Total Credited Amount:</p>
+            <h2 class="amount">    
+                {{ "₹ {:,.2f}".format(credit_sum) }}
+            </h2>
+        </div>
+        <div class="stat-card compact-card" id="big-transaction">
+            <div class="stat-item">
+                <p class="label">Biggest Amount</p>
+                <p class="amount">{{ "₹ {:,.2f}".format(Big_transaction_amount) }}</p>
+            </div>
+            
+            <div class="stat-item">
+                <p class="label">Payee</p>
+                <p class="amount">{{ Big_transaction_Payee }}</p>
+            </div>
+            
+            <div class="stat-item">
+                <p class="label">Type</p>
+                <p class="amount">{{ Big_transaction_type.title() }}</p>
+            </div>
+        </div>
+    </div>
+<details>
+    <summary>Show Filters</summary>
+    <div class="filter-list">
+    <div class="filter"> 
+        <form method="GET">
+               
+                <label>Start from:</label>
+                <input type="date" name="startDate" >
+                <br>
+                <label>To :</label>
+                <input type="date" name="endDate"><br>
+                <button type="submit" class="btn-primary">Dates</button>
+                
+        </form>
+    </div>
+    <div class="filter">
+        <form method="GET">
+               
+                <label>Filter By Category:</label>
+                <select name="category" id="expense-category">
+                    <option value="">All</option>
+                    <option value="Merchant">Merchant</option>
+                    <option value="Person">Person</option>
+                </select>
+            <button type="submit" class="btn-primary">Filter Category</button>
+        </form>
+    </div>
+    <div class="filter">
+        <form method="GET">
+               
+                <label>Minimum Amount:</label>
+                <input type="number" name="min_amount" placeholder="Enter Minimum amount..." min="0" step="0.01"><br>
+                <label>Maximum Amount:</label>
+                <input type="number" name="max_amount" placeholder="Enter Maximum amount..." min="0" step="0.01">
+
+            <button type="submit" class="btn-primary">Filter Amount</button>
+        </form>
+    </div>
+</div>
+</details>
+    <div class="chart-card" id='chart-top'>
+        <div class="spending_Chart">
+        <h2>Spending Over Time:</h2>
+        <canvas id="spendingChart"></canvas>
+        </div>
+        
+        
+       
+    </div>
+    <div class="chart-card" id='chart-bottom' >
+        <div class="Credit_Chart">
+        <h2>Credit Over Time:</h2>
+        <canvas id="spendingChartCredit"></canvas>
+        </div>
+        
+    </div>
+       
+    <div class="chart-card">
+        <div class="top_payee_Chart">
+            <canvas id="top_payee"></canvas>
+        </div>
+        <div class="CreditPie">
+        <button type="submit" id="typeToggleBtn" onclick="toggleScale()" fdprocessedid="egmryd">Switch to Debit</button>
+            <h2>Credit VS Debit</h2>
+            <canvas id="CreditPieChart" width="287" height="287" style="display: block; box-sizing: border-box; height: 229.6px; width: 229.6px;"></canvas>
+        </div>
+    
+    </div>
+    
+     <div class="chart-card">
+        <div class="filter">
+        <form method="GET">
+               
+                <label>Filter By Person:</label>
+                <select name="some_entity">
+                    <option value="">All Categories</option>
+                    
+                    {% for cat in Payee_names %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit">Show Financial Chart</button>
+        </form>
+        
+        </div>
+        <canvas id="entityChart"></canvas>
+       
+    
+    </div>
+    {# 
+   
+   
+     #}
+    <details>
+    <summary>Show Transactions</summary>
+    <div class= "show">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+                <tr>
+                    <td>{{transaction.date}}</td>
+                    <td>{{transaction.payee}}</td>    
+                    <td>{{transaction.type}}</td>
+                    <td>{{transaction.amount}}</td>
+                    <td><select class="category-select" data-id="{{ transaction.id }}">
+                            <option value="Recharge" {% if transaction.category == 'Recharge' %}selected{% endif %}>Recharge</option>
+                            <option value="Person" {% if transaction.category == 'Person' %}selected{% endif %}>Person</option>
+                            <option value="Merchant" {% if transaction.category == 'Merchant' %}selected{% endif %}>Merchant</option>
+                        </select>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    </details>
+
+</div>
+ <script>
+    const pie_credit = {{PIE_CREDIT_VALUES_CREDIT | tojson }}
+    const pie_debit = {{ PIE_CREDIT_VALUES_DEBIT | tojson }}
+    document.querySelectorAll('.category-select').forEach(select => {
+    select.addEventListener('change', function () {
+        const id = this.dataset.id;
+        const category = this.value;
+
+        const formData = new FormData();
+        formData.append('category', category);
+
+        fetch(`/update_category/${id}`, {
+            method: 'POST',
+            body: formData
+        }).then(res => {
+            if (res.ok) {
+                this.style.borderColor = '#686997'; // brief visual confirmation
+            }
+        });
+    });
+});
+   
+const charter = document.getElementById('spendingChart');
+    
+// 1. Save the chart to a variable so we can control it later!
+let myChart = new Chart(charter,{
+        type :'line',
+        data:{
+            labels : {{X_AXIS| tojson }} ,
+            datasets: [{
+                label:'Debits', 
+                data:{{Y_AXIS| tojson }},
+                backgroundColor: '#686997',
+                borderColor: '#686997',
+                borderRadius:4,
+                 tension: 0.4
+                
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: true,
+                    scales: {
+                            x: {
+                                ticks: {
+                                        display: false
+                                        },
+                                        grid:{
+                                        display:false
+                                    }
+                                },
+                            y: {
+                                    type: 'logarithmic', // Changes the scale
+                                    ticks: {
+                                        display: false
+                                        },
+                                    grid:{
+                                        display:false
+                                    }
+                                    }
+                                
+                            }
+                }
+    });
+
+const Credit_pie_chart = document.getElementById('CreditPieChart');
+let CreditPieChart = new Chart(Credit_pie_chart,{
+    type: 'pie', 
+        data: {
+            labels: {{ PIE_CREDIT_LABLES|tojson }},
+    
+            datasets: [{
+                data: pie_credit,
+                backgroundColor: ['#686997', '#14b8a6'],
+                hoverOffset: 4
+            }]
+        },
+        options: {responsive: true, maintainAspectRatio: true,
+            plugins: {
+                legend: { position: 'bottom' },
+                title: { display: true, text: 'Financial Overview' }
+            }
+        }
+});
+
+
+const charty = document.getElementById('spendingChartCredit');
+    
+// 1. Save the chart to a variable so we can control it later!
+let myCreditChart = new Chart(charty,{
+        type :'line',
+        data:{
+            labels : {{X_AXIS_CREDIT| tojson }} ,
+            datasets: [{       
+                label:'CREDITS', 
+                data:{{Y_AXIS_CREDIT| tojson }},
+                backgroundColor: '#14b8a6',
+                borderColor: '#14b8a6',
+                tension: 0.4,
+        
+                spanGaps: true
+            }
+]
+        },
+        options: { responsive: true, maintainAspectRatio: true,
+                    scales: {
+                            x: {
+                                ticks: {
+                                        display: false
+                                        },
+                                        grid:{
+                                        display:false
+                                    }
+                                },
+                            y: {
+                                    type: 'logarithmic', // Changes the scale
+                                    ticks: {
+                                        display: false
+                                        },
+                                    grid:{
+                                        display:false
+                                    }
+                                    }
+                                
+                            }
+                }
+    });
+
+
+
+
+const chart_payee = document.getElementById('top_payee');
+let top_payee_Bar_Chart = new Chart(chart_payee,{
+        type :'bar',
+        data:{
+            labels : {{TOP_PAYEE_CATEGORIES| tojson }} ,
+            datasets: [{
+                   
+                data:{{TOP_PAYEE_NUMBERS| tojson }},
+                backgroundColor: '#686997',
+                borderColor: '#686997',
+                tension: 0.4,
+                barPercentage: 0.50,      
+                categoryPercentage: 0.50
+            }]
+        },
+        options: {
+        // ADD THIS PLUGINS BLOCK
+        plugins: {
+            legend: {
+                display: false // This makes the "undefined" box disappear
+            }
+        }}
+    });
+const entityChart = new Chart(document.getElementById('entityChart'), {
+    type: 'line',
+    data: {
+        labels: {{ ENTITY_LABELS | tojson }},
+        datasets: [{
+            label: 'Net Flow',
+            data: {{ ENTITY_DATA | tojson }},
+            borderColor: '#686997',
+            tension: 0.4,
+            fill: true,
+            backgroundColor: 'rgba(104, 105, 151, 0.2)'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            x: { ticks: { display: false }, grid: { display: false } },
+            y: { grid: { color: '#f0f0f0' } }
+        }
+    }
+});
+// Add this variable outside your function to keep track of what is currently showing
+let currentView = 'credit'; 
+
+function toggleScale() {
+    const chartData = CreditPieChart.data;
+    const btn = document.getElementById('typeToggleBtn');
+
+    // Check the string state, not the array reference!
+    if (currentView === 'credit') {
+        // Swap to Debit
+        chartData.datasets[0].data = pie_debit;
+         // DON'T FORGET THE LABELS!
+        
+        btn.innerText = 'Switch to Credit';
+        currentView = 'debit';
+    } else {
+        // Swap back to Credit
+        chartData.datasets[0].data = pie_credit;
+     // DON'T FORGET THE LABELS!
+        
+        btn.innerText = 'Switch to Debit';
+        currentView = 'credit';
+    }
+
+    // Tell Chart.js to visually redraw the chart
+    CreditPieChart.update();
+}
+
+</script> 
+{% endblock %}
+
+
+
+
+
+
+ {#  #}

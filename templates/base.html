@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>
+            My Finance Monitor
+        </title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <nav>
+            <span class="nav-brand">Finance Dashboard</span>
+            <div class="nav-links">
+                <a href="{{ url_for('content') }}">Upload</a>
+                <a href="{{ url_for('results') }}">Dashboard</a>
+            </div>
+        </nav>
+        {% block content %}{% endblock  %}
+        <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+        
+        
+    </body>
+</html>

@@ -1,0 +1,6 @@
+finance/
+__pycache__/
+instance/
+uploads/
+*.db
+.env
